@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon for the protection foreground service. Flat white on
+     transparent, as the platform requires for small icons. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2L4,5v6.1c0,4.9 3.4,9.5 8,10.9c4.6,-1.4 8,-6 8,-10.9V5L12,2zM12,11.5h6.2c-0.5,3.1 -2.4,5.9 -6.2,7.3V12H5.8V5.9L12,3.6V11.5z" />
+</vector>

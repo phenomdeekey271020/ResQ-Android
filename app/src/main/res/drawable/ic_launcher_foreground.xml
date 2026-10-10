@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!--
+      ResQ launcher foreground, converted from resq-app-icon.svg.
+
+      The source artwork is a 512x512 rounded square: teal ground, white
+      shield, teal letter R. Only the shield and R live on this layer; the
+      teal ground is ic_launcher_background. The artwork is centred on
+      (54,54) and scaled so its farthest point sits exactly on the 66dp
+      adaptive-icon safe circle (radius 33), so no launcher mask clips it.
+    -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54.00,22.83L78.93,32.36L78.93,52.16C78.93,68.29 67.93,79.29 54.00,85.15C40.06,79.29 29.07,68.29 29.07,52.16L29.07,32.36Z"
+        android:strokeWidth="2.93"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineJoin="round" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M47.40,42.62H54.73a6.97,6.97 0 0 1 0,13.93H47.40M47.40,42.62V64.62M55.46,56.56L62.80,64.62"
+        android:strokeWidth="5.13"
+        android:strokeColor="#0A7570"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

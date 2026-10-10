@@ -1,0 +1,35 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Kotlin build session state.
+/.kotlin/
+
+# Physical-device audit artefacts (screenshots and UI dumps). These capture the
+# test device's screen, including the emergency contacts entered during manual
+# testing, so they are local evidence only and must never be published.
+/_audit/
+
+# Installable artefacts: attach these to a GitHub Release, never commit them.
+*.apk
+*.aab
+
+# Release signing material - NEVER commit any of this. The keystore and its
+# passwords live outside the repository (or in this git-ignored properties file).
+/keystore.properties
+*.jks
+*.keystore
+*.p12
+signing/

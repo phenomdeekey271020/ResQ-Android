@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      ResQ asks for foreground (while-in-use) location only. It deliberately does
+      NOT declare ACCESS_BACKGROUND_LOCATION.
+
+      Why background location is unnecessary: Android treats an app as using
+      foreground location while "an activity belonging to the app is visible" OR
+      "the app is running a foreground service" that declares a foreground service
+      type of location. That while-in-use access is retained when the app is
+      backgrounded, including when the screen is turned off, for as long as the
+      foreground service runs.
+
+      So the intended flow works with foreground location alone:
+        user opens ResQ -> taps Resume Protection -> location foreground service
+        starts while the app is visible -> screen off -> fixes keep arriving.
+
+      Background location would only be needed to read a position when NO
+      foreground service is running (closed app, no protection active), which is
+      not something this prototype does.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!--
+      Continuous protection foreground service (Task 4B) plus the location type
+      added by Task 5A.
+
+      FOREGROUND_SERVICE_TYPE_LOCATION additionally requires the normal-level
+      FOREGROUND_SERVICE_LOCATION permission (API 34+). It does NOT grant access
+      to a location the user never shared, and it does not relax the while-in-use
+      rules - a location foreground service still has to be started while the app
+      is visible, which ResQ only ever does from an explicit user tap.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      CALL_PHONE lets ResQ PLACE a call to the user's primary emergency contact
+      when an incident escalates and nobody answers, instead of only opening the
+      dialer and leaving a possibly-unconscious user to press Call.
+
+      Declared here, but the dangerous runtime permission is requested ONLY from
+      a visible, explicit control in Settings - never automatically at incident
+      time. It is off by default and gated behind a separate, informed consent
+      switch that explains a real call will be placed.
+
+      Deliberate constraints on its use:
+        - at most one attempt per incident, primary contact only, never a loop
+          over every contact;
+        - never in Developer/Test Mode, never for the emergency number, and never
+          in any automated test (every test uses a fake launcher);
+        - the emergency screen always keeps a manual call action, so a refusal,
+          a revocation or a background restriction is a fallback and not a
+          dead end;
+        - ResQ reports only what the platform did and never claims a call
+          connected or was answered.
+
+      Play policy note: CALL_PHONE is a restricted permission and this use is
+      reviewed - which is why the consent is explicit, per-incident and
+      user-revocable rather than assumed.
+    -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!--
+      SEND_SMS lets ResQ send ONE alert text per real incident from the user's
+      own SIM to the emergency contacts they saved, when an incident escalates
+      and nobody answers.
+
+      Deliberate constraints on its use:
+        - off by default, behind a SEPARATE consent from the phone-call consent,
+          because a text spends the user's mobile credit through their carrier
+          and a call does not;
+        - requested ONLY from a visible, explicit control in Settings - never
+          automatically, and never during an incident, where a permission dialog
+          would be both unusable and coercive;
+        - at most one message per incident, and never in Developer/Test Mode;
+        - never sent to the emergency number: 112 stays a manual button, exactly
+          as it was before this permission existed;
+        - no automated test can ever send a message - every test injects a fake
+          sender - and the emergency screen always keeps its manual contact and
+          call actions as a working fallback;
+        - ResQ reports only what the platform reported, and never claims a
+          message was delivered when the carrier gave no receipt.
+
+      There is no cloud telephony provider here: the message goes from the SIM
+      through the carrier, so no API secret and no server-side sender exists in
+      this app.
+
+      Play policy note: SEND_SMS is a restricted permission and this use is
+      reviewed, which is why it is explicit, per-incident, consented and
+      user-revocable rather than assumed.
+    -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
+    <!--
+      Nearby-resource discovery (Task 5C) talks to the production ResQ FastAPI
+      backend over HTTPS. The request carries only the emergency location
+      snapshot and the incident type - never the SerpApi key, which stays on
+      the backend.
+
+      No cleartext allowance exists anywhere in the app: HTTPS uses the
+      platform default trust anchors with full TLS validation, and release
+      builds keep the platform default of no cleartext traffic.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-feature
+        android:name="android.hardware.sensor.accelerometer"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.sensor.gyroscope"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+
+    <!--
+      Declared alongside CALL_PHONE, and required="false" for a real reason rather
+      than to silence the check: CALL_PHONE implies telephony hardware to the
+      package manager, which would otherwise hide ResQ from tablets and
+      Chromebook-style devices that have no radio at all.
+
+      ResQ genuinely needs no radio - escalation falls back to the dialer when
+      there is no telephony, and every location, detection and resource feature
+      works unchanged. The emergency number is region-specific, not
+      hardware-specific.
+    -->
+    <uses-feature
+        android:name="android.hardware.telephony"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ResQ">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.ResQ"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Continuous protection. TWO foreground service types are declared because
+          the service does two genuinely different jobs:
+
+            location     - Android 10+ requires a location type for any service
+                           that reads position, and it is what keeps fixes
+                           arriving while the screen is off. Location is read at a
+                           1 Hz / 0 m callback cadence through the existing
+                           SensorGateway, not by polling.
+
+            specialUse   - the continuous accelerometer/gyroscope monitoring for
+                           the prototype accident detector does not fit any of the
+                           predefined types, so it stays declared with its subtype
+                           explanation.
+
+          Only the type bits actually usable at runtime are passed to
+          startForeground(): the service adds FOREGROUND_SERVICE_TYPE_LOCATION
+          only once location permission has really been granted, because Android
+          14+ throws SecurityException when a service is promoted to foreground
+          with a type whose permission it does not hold. Protection therefore
+          still starts with location permission denied.
+
+          stopWithTask=false keeps protection alive when the app is swiped away;
+          there is deliberately no boot receiver and nothing starts this service
+          automatically.
+        -->
+        <service
+            android:name=".service.ProtectionForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="location|specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Continuous accelerometer and gyroscope monitoring for prototype accident detection" />
+        </service>
+    </application>
+
+</manifest>

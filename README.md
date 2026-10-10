@@ -63,6 +63,26 @@ presses.
 
 ---
 
+## Project repositories
+
+ResQ is **two separate projects in two separate repositories**:
+
+| Project | Repository | Role |
+|---|---|---|
+| Android app | <https://github.com/phenomdeekey271020/ResQ-Android> | Kotlin / Jetpack Compose client — this repository |
+| FastAPI backend | <https://github.com/PhenomDeekey27/ResQ_Backend> | Nearby-emergency-resource search service and the SerpApi integration |
+
+The two are independent codebases with their own build, test and deployment
+setups; a change to one is not a change to the other, and they are versioned
+separately. This README describes the Android app.
+
+The backend is also **deployed as a running production service** at
+<https://resq-backend-s55p.onrender.com/> — that is the live service URL the app
+talks to by default, and it is *not* the backend source repository (the source is
+the `ResQ_Backend` repository above).
+
+---
+
 ## The problem ResQ addresses
 
 Three things are genuinely hard in the first minutes after an incident:
@@ -445,7 +465,7 @@ ResQ_Backend/
 ### 1. Clone the Android repository
 
 ```bash
-git clone https://github.com/<your-account>/ResQ-Android.git
+git clone https://github.com/phenomdeekey271020/ResQ-Android.git
 cd ResQ-Android
 ```
 
@@ -478,7 +498,7 @@ On Windows use `gradlew.bat` (or `./gradlew` from Git Bash).
 Clone the backend repository separately:
 
 ```bash
-git clone https://github.com/<your-account>/ResQ_Backend.git
+git clone https://github.com/PhenomDeekey27/ResQ_Backend.git
 cd ResQ_Backend
 
 python -m venv venv
@@ -567,23 +587,71 @@ Or install the built APK directly:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+On Windows, from **PowerShell**, the same command is:
+
+```powershell
+adb install -r .\app\build\outputs\apk\debug\app-debug.apk
+```
+
+`-r` reinstalls over an existing copy and updates it in place; it only works when
+the new APK is signed by the same certificate as the installed one (see the
+prebuilt-release section below).
+
 ### Installing a prebuilt release instead of building
 
 Tagged **releases** publish a signed, minified release APK as a downloadable
-asset, so the app can be installed without a development environment. Download
-the APK from the repository's **Releases** page, verify the SHA-256 checksum
-against the one in the release notes, then install it:
+asset, so the app can be installed without a development environment.
 
-```bash
-adb install -r ResQ-v<version>-release.apk
-```
+All releases live at:
+
+**<https://github.com/phenomdeekey271020/ResQ-Android/releases>**
+
+The workflow is **download → verify → install**:
+
+1. **Download** the APK asset from the Releases page (for example
+   `ResQ-v1.0.1-release.apk`). The release notes state the exact filename,
+   version and SHA-256 checksum for that asset — the filename in the notes must
+   match the file you downloaded.
+2. **Verify** the checksum *before* installing anything:
+
+   ```bash
+   sha256sum ResQ-v1.0.1-release.apk                        # Linux / macOS
+   ```
+
+   ```powershell
+   Get-FileHash .\ResQ-v1.0.1-release.apk -Algorithm SHA256  # Windows PowerShell
+   ```
+
+   Compare it with the checksum in the release notes. **If they differ, do not
+   install the file** — treat it as corrupted or tampered with.
+3. **Install** it:
+
+   ```bash
+   adb install -r ResQ-v1.0.1-release.apk
+   ```
+
+   ```powershell
+   adb install -r "$env:USERPROFILE\Downloads\ResQ-v1.0.1-release.apk"
+   ```
+
+   The PowerShell example assumes the file was saved to your `Downloads` folder
+   and that its name matches the downloaded asset; adjust the path if you saved
+   it elsewhere.
+
+**About `-r` and signing certificates.** `-r` means "replace the installed copy
+in place", and Android only permits that when the new APK is signed by the
+**same** certificate as the one already installed. A debug build and a release
+build are signed by **different** certificates, so a release APK cannot be
+installed over a debug install (or vice versa) with `-r` — uninstall the other
+build first. The debug certificate and this project's release certificate are
+**not** interchangeable.
 
 Sideloading a release APK that Android has not seen before normally raises a
 **Play Protect** confirmation for an unrecognised developer. That prompt reflects
-reputation, not the APK's contents: it clears as installs accumulate. An update
-can only be installed over an existing one when both are signed by the same
-certificate, so a build from this repository's release key and a build from your
-own key cannot replace each other — uninstall one before installing the other.
+the signer's reputation, not the APK's contents: it clears as installs of the
+same certificate accumulate. Treat it as information to review — only continue if
+you trust the source of the file and have verified the checksum, rather than
+dismissing security warnings as a matter of course.
 
 ---
 
@@ -662,12 +730,26 @@ in `PHYSICAL_DEVICE_TEST_PLAN.md`.
 | Backend pytest suite (79 tests) | Automated, reproducible | 0 failures |
 | Backend `/health` on Render | Manual check | Returns `{"status":"healthy"}` |
 | Backend resource search on Render | Manual check | Returns live SerpApi-backed results |
+| Release build with R8 (minified, signed) | Automated, reproducible | Succeeds; `minifyReleaseWithR8` and `lintVitalRelease` both pass |
+| Release lint (`:app:lintRelease`) | Automated, reproducible | 0 errors; 35 warnings |
+| Release APK signing | Automated | `apksigner` verifies the APK against the release certificate (v2 + v3 schemes) |
+| R8 release-dex integrity scan | Automated | 0 classes extend a package-private superclass across packages |
+| Release APK launch + navigation | **Manual only (physical device)** | Vivo V2561i, Android 16: reached Home, and Home → Settings → Emergency settings → Back → Home, without a crash |
 | Full escalation against a real SIM | **Manual only** | Requires a consenting contact and a physical device; not covered by automation |
 | Sensor detection on real hardware | **Manual only** | Behaviour varies by device and how the phone is carried |
 
 No coverage percentage, benchmark or screenshot in this repository should be
 treated as a guarantee. Anything described as "manual only" above has **not** been
 reproduced by the automated suite.
+
+The release build enables R8 code and resource optimization over the whole app
+(the AGP 9.3+ `optimization { enable = true }` DSL) with each dependency's own
+keep rules applied. It deliberately does **not** use the experimental
+`packageScope` option: scoping optimization to selected packages produced a
+release dex in which a package-private Kotlin standard-library facade was
+extended from a class repackaged into a different package, which crashed the
+first time that code was reached. The corrected build is scanned for that class
+of defect and comes back clean.
 
 ---
 
@@ -784,6 +866,8 @@ normal emergency services.
   deduplication, radius limiting and nearest-first sorting.
 - Stateless backend with SerpApi integration, structured error mapping and 79
   passing tests.
+- Release signing with a private keystore (never committed) and published,
+  versioned GitHub releases, including the corrected `v1.0.1` release.
 
 ### Proposed improvements (not implemented)
 
@@ -792,7 +876,7 @@ normal emergency services.
 - Optional cloud voice escalation, via the disabled backend interface that
   already specifies consent, idempotency and honest reporting. **No provider is
   selected and the feature is off.**
-- Release signing, versioned releases and automated CI.
+- Automated CI (build, lint and test) for both repositories.
 - Crash reporting and privacy-preserving telemetry (deliberately absent today).
 - A privacy policy and the store disclosures needed for wider distribution.
 - Accessibility and localisation work beyond the current English strings.

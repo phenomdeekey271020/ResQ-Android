@@ -218,9 +218,31 @@ android {
                         "'${releaseStoreFilePath}'",
                 )
             }
+            /*
+             * R8 code + resource optimization for release, with the standard
+             * full-app scope.
+             *
+             * Do NOT reintroduce the experimental packageScope here. Restricting
+             * optimization to androidx.**, kotlin.** and kotlinx.** produced a
+             * release dex in which a package-private Kotlin stdlib facade such as
+             * kotlin.text.StringsKt__IndentKt stayed package-private in
+             * `kotlin.text`, while its subclass
+             * kotlin.text.StringsKt__StringNumberConversionsJVMKt was repackaged
+             * to the unnamed package. A class in the unnamed package cannot
+             * extend a package-private class in `kotlin.text`, so the very first
+             * reference to OkHttp's MediaType threw
+             * `IllegalAccessError: Class kotlin.text.f extended by class c31 is
+             * inaccessible` during EmergencyResourcesApi's static initializer.
+             *
+             * packageScope is documented as an incremental on-ramp for apps that
+             * do not yet use R8, and explicitly not recommended for apps that
+             * already use it - this app does. Optimizing the whole app is the
+             * correct, supported configuration; the standard R8 keep rules from
+             * each dependency (including OkHttp's and kotlinx.serialization's)
+             * are still applied.
+             */
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
     }

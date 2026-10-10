@@ -567,6 +567,24 @@ Or install the built APK directly:
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+### Installing a prebuilt release instead of building
+
+Tagged **releases** publish a signed, minified release APK as a downloadable
+asset, so the app can be installed without a development environment. Download
+the APK from the repository's **Releases** page, verify the SHA-256 checksum
+against the one in the release notes, then install it:
+
+```bash
+adb install -r ResQ-v<version>-release.apk
+```
+
+Sideloading a release APK that Android has not seen before normally raises a
+**Play Protect** confirmation for an unrecognised developer. That prompt reflects
+reputation, not the APK's contents: it clears as installs accumulate. An update
+can only be installed over an existing one when both are signed by the same
+certificate, so a build from this repository's release key and a build from your
+own key cannot replace each other — uninstall one before installing the other.
+
 ---
 
 ## Demo and testing
